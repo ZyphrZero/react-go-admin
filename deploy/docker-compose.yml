@@ -1,0 +1,71 @@
+# =============================================================================
+# React Go Admin Docker Compose
+# =============================================================================
+# Quick Start:
+#   1. Copy .env.example to .env
+#   2. Edit secrets and database password
+#   3. ./install.sh install
+#   4. ./install.sh status
+#
+# Access:
+#   http://YOUR_SERVER_IP:${APP_PORT:-8080}
+# =============================================================================
+
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: react-go-admin:local
+    container_name: react-go-admin-api
+    restart: unless-stopped
+    ports:
+      - "${BIND_HOST:-0.0.0.0}:${APP_PORT:-8080}:9999"
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_DATABASE: ${POSTGRES_DB}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - storage_data:/app/storage
+      - logs_data:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9999/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: react-go-admin-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-react_go_admin}
+      PGDATA: /var/lib/postgresql/data
+      TZ: ${TZ:-Asia/Shanghai}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  storage_data:
+    driver: local
+  logs_data:
+    driver: local
+  postgres_data:
+    driver: local
